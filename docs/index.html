@@ -110,31 +110,52 @@
       dropArea.innerHTML = `✉   <strong>${file.name}</strong> ready to upload.`;
     }
 
-    async function startAnalysis() {
-      if (!uploadedFile) return alert('Please upload a PDF first.');
+async function startAnalysis() {
+  if (!uploadedFile) return alert('Please upload a PDF first.');
 
-      const language = document.getElementById('language').value;
-      const formData = new FormData();
-      formData.append('file', uploadedFile);
-      formData.append('language', language);
+  const language = document.getElementById('language').value;
 
-      document.getElementById('status-section').style.display = 'block';
-      document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
-      document.getElementById('results').textContent = '';
+  // Show UI status
+  document.getElementById('status-section').style.display = 'block';
+  document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
+  document.getElementById('results').textContent = '';
 
-      try {
-        const res = await fetch('https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/start', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        jobId = data.jobId;
-        pollStatus(jobId, language, data.estimated_seconds);
-      } catch (err) {
-        document.getElementById('status-text').textContent = '❌ Error starting analysis';
-        console.error(err);
-      }
+  try {
+    // Read and convert file to base64
+    const fileBuffer = await uploadedFile.arrayBuffer();
+    const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+
+    const payload = {
+      language: language,
+      filename: uploadedFile.name,
+      filedata: base64File
+    };
+
+    const res = await fetch('https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      throw new Error('Server error: ' + res.status);
     }
+
+    const data = await res.json();
+    if (!data.jobId) {
+      throw new Error(data.error || 'Unexpected response');
+    }
+
+    jobId = data.jobId;
+    pollStatus(jobId, language, data.estimated_seconds);
+  } catch (err) {
+    document.getElementById('status-text').textContent = '❌ Error starting analysis';
+    console.error('Start error:', err);
+  }
+}
+
 
     async function pollStatus(jobId, language, estSeconds) {
       const start = Date.now();
