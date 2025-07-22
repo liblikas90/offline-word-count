@@ -49,6 +49,7 @@
     }
     #status-text {
       margin-top: 0.5rem;
+      white-space: pre-wrap;
     }
     .bar {
       margin-top: 1rem;
@@ -118,7 +119,7 @@
 
       const reader = new FileReader();
       reader.onload = async function () {
-        const base64data = reader.result.split(',')[1]; // Strip "data:application/pdf;base64,..."
+        const base64data = reader.result.split(',')[1]; // Strip base64 prefix
 
         const language = document.getElementById('language').value;
         document.getElementById('status-section').style.display = 'block';
@@ -135,15 +136,22 @@
             body: base64data
           });
 
+          if (!res.ok) {
+            const errText = await res.text();
+            document.getElementById('status-text').textContent = `❌ Error ${res.status}:\n${errText}`;
+            return;
+          }
+
           const data = await res.json();
           if (data.jobId) {
             jobId = data.jobId;
             pollStatus(jobId, language, data.estimated_seconds);
           } else {
-            throw new Error(data.error || 'Unexpected error');
+            document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
           }
+
         } catch (err) {
-          document.getElementById('status-text').textContent = '❌ Error starting analysis';
+          document.getElementById('status-text').textContent = '❌ Network or JS error. See console.';
           console.error(err);
         }
       };
