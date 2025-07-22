@@ -132,7 +132,7 @@
               'Content-Type': 'application/json',
               'language': language
             },
-            body: JSON.stringify(base64data)
+            body: base64data
           });
 
           const data = await res.json();
