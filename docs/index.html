@@ -41,6 +41,7 @@
       border: 2px dashed #888;
       border-radius: 5px;
       text-align: center;
+      cursor: pointer;
     }
     #file-name {
       margin-top: 0.5rem;
@@ -117,7 +118,7 @@
 
       const reader = new FileReader();
       reader.onload = async function () {
-        const base64Data = reader.result.split(',')[1];  // Strip the prefix
+        const base64data = reader.result.split(',')[1]; // Strip "data:application/pdf;base64,..."
 
         const language = document.getElementById('language').value;
         document.getElementById('status-section').style.display = 'block';
@@ -128,20 +129,25 @@
           const res = await fetch('https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/start', {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/octet-stream',
+              'Content-Type': 'application/json',
               'language': language
             },
-            body: base64Data
+            body: JSON.stringify(base64data)
           });
 
           const data = await res.json();
-          jobId = data.jobId;
-          pollStatus(jobId, language, data.estimated_seconds);
+          if (data.jobId) {
+            jobId = data.jobId;
+            pollStatus(jobId, language, data.estimated_seconds);
+          } else {
+            throw new Error(data.error || 'Unexpected error');
+          }
         } catch (err) {
           document.getElementById('status-text').textContent = '❌ Error starting analysis';
           console.error(err);
         }
       };
+
       reader.readAsDataURL(uploadedFile);
     }
 
@@ -168,6 +174,7 @@
         } catch (err) {
           clearInterval(interval);
           document.getElementById('status-text').textContent = '❌ Error checking status';
+          console.error(err);
         }
       }, 5000);
     }
