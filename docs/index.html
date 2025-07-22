@@ -2,63 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>iPify Word Count Analyser</title>
-  <link href="https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>iPify Offline Word Count</title>
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Gloria Hallelujah', cursive;
-      background-color: #fafafa;
-      padding: 20px;
-      max-width: 800px;
-      margin: auto;
+      font-family: 'Patrick Hand', cursive;
+      background: #fafafa;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
     }
     h1 {
-      text-align: center;
-      border-bottom: 2px solid #333;
-      padding-bottom: 10px;
+      font-size: 2rem;
+      margin-bottom: 1rem;
     }
-    .section {
+    .card {
       border: 2px solid #333;
       border-radius: 10px;
-      padding: 20px;
-      margin-top: 20px;
+      padding: 1rem;
+      margin: 1rem;
+      width: 90%;
+      max-width: 600px;
       background: white;
     }
-    label, select, textarea, input[type="text"] {
-      display: block;
-      width: 100%;
-      margin-bottom: 10px;
-      font-size: 1em;
-    }
-    button {
+    select, button {
       font-family: inherit;
-      font-size: 1em;
-      padding: 10px 20px;
-      border-radius: 6px;
+      font-size: 1rem;
+      padding: 0.5rem;
       border: 2px solid #333;
-      background-color: white;
-      cursor: pointer;
+      border-radius: 5px;
     }
-    #drop-area {
+    #dropzone {
+      margin-top: 0.5rem;
+      padding: 1rem;
       border: 2px dashed #888;
-      padding: 30px;
+      border-radius: 5px;
       text-align: center;
-      margin-top: 10px;
-      cursor: pointer;
     }
-    #results {
-      white-space: pre-wrap;
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 8px;
+    #file-name {
+      margin-top: 0.5rem;
+      font-weight: bold;
+    }
+    #status-text {
+      margin-top: 0.5rem;
+    }
+    .bar {
+      margin-top: 1rem;
+      width: 100%;
+      height: 12px;
+      background: #eee;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
   <h1>iPify Offline Word Count</h1>
 
-  <div class="section">
+  <div class="card">
     <label for="language">Choose language</label>
     <select id="language">
       <option value="en">English</option>
@@ -67,117 +70,106 @@
       <option value="pt">Portuguese</option>
     </select>
 
-    <div id="drop-area">
-      <strong>Drag & drop PDF here</strong><br>
-      or click to select a file
-      <input type="file" id="fileElem" accept="application/pdf" style="display:none">
+    <div id="dropzone">📄 Drag & Drop PDF Here or Click
+      <input type="file" accept="application/pdf" id="file-input" style="display: none;" />
     </div>
-
+    <div id="file-name"></div>
+    <br/>
     <button onclick="startAnalysis()">Analyse Document</button>
   </div>
 
-  <div class="section" id="status-section" style="display:none;">
-    <p id="status-text">Processing...</p>
-    <div id="results"></div>
+  <div class="card" id="status-section" style="display: none;">
+    <div id="status-text">Uploading and Starting Analysis…</div>
+    <div class="bar"></div>
+    <div id="results" style="margin-top:1rem;"></div>
   </div>
 
   <script>
-    const dropArea = document.getElementById('drop-area');
-    const fileInput = document.getElementById('fileElem');
     let uploadedFile = null;
     let jobId = null;
 
-    dropArea.addEventListener('click', () => fileInput.click());
-    dropArea.addEventListener('dragover', e => {
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    dropzone.onclick = () => fileInput.click();
+
+    dropzone.addEventListener('dragover', e => {
       e.preventDefault();
-      dropArea.style.background = '#eee';
+      dropzone.style.background = '#f0f0f0';
     });
-    dropArea.addEventListener('dragleave', () => dropArea.style.background = '');
-    dropArea.addEventListener('drop', e => {
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.style.background = 'white';
+    });
+
+    dropzone.addEventListener('drop', e => {
       e.preventDefault();
-      dropArea.style.background = '';
-      const files = e.dataTransfer.files;
-      if (files.length) handleFile(files[0]);
-    });
-    fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-
-    function handleFile(file) {
-      if (file.type !== 'application/pdf') {
-        alert('Please upload a PDF file.');
-        return;
-      }
-      uploadedFile = file;
-      dropArea.innerHTML = `✉   <strong>${file.name}</strong> ready to upload.`;
-    }
-
-async function startAnalysis() {
-  if (!uploadedFile) return alert('Please upload a PDF first.');
-
-  const language = document.getElementById('language').value;
-
-  // Show UI status
-  document.getElementById('status-section').style.display = 'block';
-  document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
-  document.getElementById('results').textContent = '';
-
-  try {
-    // Read and convert file to base64
-    const fileBuffer = await uploadedFile.arrayBuffer();
-    const base64File = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
-
-    const payload = {
-      language: language,
-      filename: uploadedFile.name,
-      filedata: base64File
-    };
-
-    const res = await fetch('https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/start', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      uploadedFile = e.dataTransfer.files[0];
+      document.getElementById('file-name').textContent = `📄 ${uploadedFile.name} ready to upload.`;
     });
 
-    if (!res.ok) {
-      throw new Error('Server error: ' + res.status);
-    }
+    fileInput.addEventListener('change', () => {
+      uploadedFile = fileInput.files[0];
+      document.getElementById('file-name').textContent = `📄 ${uploadedFile.name} ready to upload.`;
+    });
 
-    const data = await res.json();
-    if (!data.jobId) {
-      throw new Error(data.error || 'Unexpected response');
-    }
+    async function startAnalysis() {
+      if (!uploadedFile) return alert('Please upload a PDF first.');
 
-    jobId = data.jobId;
-    pollStatus(jobId, language, data.estimated_seconds);
-  } catch (err) {
-    document.getElementById('status-text').textContent = '❌ Error starting analysis';
-    console.error('Start error:', err);
-  }
-}
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const base64Data = reader.result.split(',')[1];  // Strip the prefix
 
+        const language = document.getElementById('language').value;
+        document.getElementById('status-section').style.display = 'block';
+        document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
+        document.getElementById('results').textContent = '';
 
-    async function pollStatus(jobId, language, estSeconds) {
-      const start = Date.now();
-      let elapsed = 0;
+        try {
+          const res = await fetch('https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/start', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'language': language
+            },
+            body: base64Data
+          });
 
-      const poll = async () => {
-        const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
-        const data = await res.json();
-
-        if (data.status === 'IN_PROGRESS') {
-          elapsed = Math.floor((Date.now() - start) / 1000);
-          document.getElementById('status-text').textContent = `Processing... (~${Math.max(estSeconds - elapsed, 1)}s left)`;
-          setTimeout(poll, 3000);
-        } else if (data.status === 'SUCCEEDED') {
-          document.getElementById('status-text').textContent = '✅ Analysis complete:';
-          document.getElementById('results').textContent = `Translatable words: ${data.translatable_words}\nNon-translatable words: ${data.non_translatable_words}\nWeighted words: ${data.weighted_words}`;
-        } else {
-          document.getElementById('status-text').textContent = '❌ Analysis failed.';
+          const data = await res.json();
+          jobId = data.jobId;
+          pollStatus(jobId, language, data.estimated_seconds);
+        } catch (err) {
+          document.getElementById('status-text').textContent = '❌ Error starting analysis';
+          console.error(err);
         }
       };
+      reader.readAsDataURL(uploadedFile);
+    }
 
-      poll();
+    async function pollStatus(jobId, language, waitTime) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
+          const data = await res.json();
+
+          if (data.status === "SUCCEEDED") {
+            clearInterval(interval);
+            document.getElementById('status-text').textContent = '✅ Analysis Complete';
+            document.getElementById('results').innerHTML = `
+              <strong>Translatable Words:</strong> ${data.translatable_words}<br>
+              <strong>Non-Translatable Words:</strong> ${data.non_translatable_words}<br>
+              <strong>Weighted Words:</strong> ${data.weighted_words}
+            `;
+          } else if (data.status === "FAILED") {
+            clearInterval(interval);
+            document.getElementById('status-text').textContent = '❌ Analysis Failed';
+          } else {
+            document.getElementById('status-text').textContent = `⏳ ${data.status}...`;
+          }
+        } catch (err) {
+          clearInterval(interval);
+          document.getElementById('status-text').textContent = '❌ Error checking status';
+        }
+      }, 5000);
     }
   </script>
 </body>
