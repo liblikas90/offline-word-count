@@ -178,7 +178,7 @@
               <strong>Unweighted Total Words:</strong> ${data.unweighted_words}<br>
               <strong>Weighted Words:</strong> ${data.weighted_words}
             `;
-            saveHistoryEntry({ ...data, fileName, time: Date.now() });
+            saveHistoryEntry({ ...data, fileName, page_count: data.page_count || pageCountFromStart, time: Date.now() });
           } else if (data.status === "FAILED") {
             clearInterval(interval);
             document.getElementById('status-text').textContent = '❌ Analysis Failed';
