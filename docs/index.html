@@ -120,6 +120,7 @@
       if (!uploadedFile) return alert('Please upload a PDF first.');
 
       const reader = new FileReader();
+      const fileName = uploadedFile.name;
       reader.onload = async function () {
         const base64data = reader.result.split(',')[1];
         const language = document.getElementById('language').value;
@@ -147,7 +148,7 @@
           const data = await res.json();
           if (data.jobId) {
             jobId = data.jobId;
-            pollStatus(jobId, language, data.page_count);
+            pollStatus(jobId, language, data.page_count, fileName);
           } else {
             document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
           }
@@ -161,7 +162,7 @@
       reader.readAsDataURL(uploadedFile);
     }
 
-    async function pollStatus(jobId, language, pageCountFromStart = null) {
+    async function pollStatus(jobId, language, pageCountFromStart = null, fileNmae = "Unknown") {
       const interval = setInterval(async () => {
         try {
           const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
@@ -177,7 +178,7 @@
               <strong>Unweighted Total Words:</strong> ${data.unweighted_words}<br>
               <strong>Weighted Words:</strong> ${data.weighted_words}
             `;
-            saveHistoryEntry({ ...data, time: Date.now() });
+            saveHistoryEntry({ ...data, fileName, time: Date.now() });
           } else if (data.status === "FAILED") {
             clearInterval(interval);
             document.getElementById('status-text').textContent = '❌ Analysis Failed';
@@ -210,6 +211,7 @@
         const item = document.createElement('div');
         const date = new Date(entry.time).toLocaleTimeString();
         item.innerHTML = `<small>${date}</small><br>
+          📄 <strong>${entry.fileName}</strong><br>
           📄 ${entry.page_count || 'N/A'} pages<br>
           🔤 ${entry.translatable_words} translatable<br>
           🚫 ${entry.non_translatable_words} non-translatable<br>
