@@ -162,7 +162,7 @@
       reader.readAsDataURL(uploadedFile);
     }
 
-    async function pollStatus(jobId, language, pageCountFromStart = null, fileNmae = "Unknown") {
+    async function pollStatus(jobId, language, pageCountFromStart = null, fileName = "Unknown") {
       const interval = setInterval(async () => {
         try {
           const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
