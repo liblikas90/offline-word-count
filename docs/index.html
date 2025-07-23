@@ -147,7 +147,7 @@
           const data = await res.json();
           if (data.jobId) {
             jobId = data.jobId;
-            pollStatus(jobId, language);
+            pollStatus(jobId, language, data.page_count);
           } else {
             document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
           }
@@ -161,7 +161,7 @@
       reader.readAsDataURL(uploadedFile);
     }
 
-    async function pollStatus(jobId, language) {
+    async function pollStatus(jobId, language, pageCountFromStart = null) {
       const interval = setInterval(async () => {
         try {
           const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
@@ -171,7 +171,7 @@
             clearInterval(interval);
             document.getElementById('status-text').textContent = '✅ Analysis Complete';
             document.getElementById('results').innerHTML = `
-              <strong>Page Count:</strong> ${data.page_count || 'N/A'}<br>
+              <strong>Page Count:</strong> ${data.page_count || pageCountFromStart || 'N/A'}<br>
               <strong>Translatable Words:</strong> ${data.translatable_words}<br>
               <strong>Non-Translatable Words:</strong> ${data.non_translatable_words}<br>
               <strong>Unweighted Total Words:</strong> ${data.unweighted_words}<br>
