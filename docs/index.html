@@ -212,7 +212,7 @@
         const date = new Date(entry.time).toLocaleTimeString();
         item.innerHTML = `<small>${date}</small><br>
           📄 <strong>${entry.fileName}</strong><br>
-          📄 ${entry.page_count || 'N/A'} pages<br>
+          📚 ${entry.page_count || 'N/A'} pages<br>
           🔤 ${entry.translatable_words} translatable<br>
           🚫 ${entry.non_translatable_words} non-translatable<br>
           🔢 ${entry.unweighted_words} unweighted<br>
