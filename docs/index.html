@@ -145,6 +145,7 @@
           const data = await res.json();
           if (data.jobId) {
             jobId = data.jobId;
+            document.getElementById('status-text').textContent = `Job started.\nJob ID: ${jobId}\nEstimated time: ${data.estimated_seconds} seconds...`;
             pollStatus(jobId, language, data.estimated_seconds);
           } else {
             document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
