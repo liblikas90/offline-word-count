@@ -86,6 +86,8 @@
     <div id="results" style="margin-top:1rem;"></div>
   </div>
 
+  <div class="card" id="history" style="display: none;"></div>
+
   <script>
     let uploadedFile = null;
     let jobId = null;
@@ -119,15 +121,15 @@
 
       const reader = new FileReader();
       reader.onload = async function () {
-        const base64data = reader.result.split(',')[1]; // Strip base64 prefix
-
+        const base64data = reader.result.split(',')[1];
         const language = document.getElementById('language').value;
+
         document.getElementById('status-section').style.display = 'block';
         document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
         document.getElementById('results').textContent = '';
 
         try {
-          const res = await fetch('https://ipify.app.n8n.cloud/webhook/offline-word-count/start', {
+          const res = await fetch('https://ipify.app.n8n.cloud/webhook-test/offline-word-count/start', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -145,8 +147,7 @@
           const data = await res.json();
           if (data.jobId) {
             jobId = data.jobId;
-            document.getElementById('status-text').textContent = `Job started.\nJob ID: ${jobId}\nEstimated time: ${data.estimated_seconds} seconds...`;
-            pollStatus(jobId, language, data.estimated_seconds);
+            pollStatus(jobId, language);
           } else {
             document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
           }
@@ -160,7 +161,7 @@
       reader.readAsDataURL(uploadedFile);
     }
 
-    async function pollStatus(jobId, language, waitTime) {
+    async function pollStatus(jobId, language) {
       const interval = setInterval(async () => {
         try {
           const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
@@ -170,10 +171,13 @@
             clearInterval(interval);
             document.getElementById('status-text').textContent = '✅ Analysis Complete';
             document.getElementById('results').innerHTML = `
+              <strong>Page Count:</strong> ${data.page_count || 'N/A'}<br>
               <strong>Translatable Words:</strong> ${data.translatable_words}<br>
               <strong>Non-Translatable Words:</strong> ${data.non_translatable_words}<br>
+              <strong>Unweighted Total Words:</strong> ${data.unweighted_words}<br>
               <strong>Weighted Words:</strong> ${data.weighted_words}
             `;
+            saveHistoryEntry({ ...data, time: Date.now() });
           } else if (data.status === "FAILED") {
             clearInterval(interval);
             document.getElementById('status-text').textContent = '❌ Analysis Failed';
@@ -187,6 +191,42 @@
         }
       }, 5000);
     }
+
+    function saveHistoryEntry(result) {
+      const history = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
+      history.push(result);
+      const oneHourAgo = Date.now() - 3600 * 1000;
+      const recent = history.filter(h => h.time > oneHourAgo);
+      localStorage.setItem('analysisHistory', JSON.stringify(recent));
+      renderHistory(recent);
+    }
+
+    function renderHistory(history) {
+      const container = document.getElementById('history');
+      if (!history.length) return;
+      container.style.display = 'block';
+      container.innerHTML = '<h3>🕓 Analysis History (last hour)</h3>';
+      history.forEach(entry => {
+        const item = document.createElement('div');
+        const date = new Date(entry.time).toLocaleTimeString();
+        item.innerHTML = `<small>${date}</small><br>
+          📄 ${entry.page_count || 'N/A'} pages<br>
+          🔤 ${entry.translatable_words} translatable<br>
+          🚫 ${entry.non_translatable_words} non-translatable<br>
+          🔢 ${entry.unweighted_words} unweighted<br>
+          ⚖️ ${entry.weighted_words} weighted
+          <hr>`;
+        container.appendChild(item);
+      });
+    }
+
+    // Load history on page load
+    window.addEventListener('load', () => {
+      const saved = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
+      const oneHourAgo = Date.now() - 3600 * 1000;
+      const recent = saved.filter(h => h.time > oneHourAgo);
+      renderHistory(recent);
+    });
   </script>
 </body>
 </html>
