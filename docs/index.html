@@ -19,6 +19,13 @@
       font-size: 2rem;
       margin-bottom: 1rem;
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 600px;
+      align-items: center;
+    }
     .card {
       border: 2px solid #333;
       border-radius: 10px;
@@ -58,10 +65,35 @@
       background: #eee;
       border-radius: 6px;
     }
+    #instructions-modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    #instructions-content {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      max-width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      font-size: 1rem;
+    }
+    #instructions-content button {
+      float: right;
+      margin-top: -0.5rem;
+    }
   </style>
 </head>
 <body>
-  <h1>iPify Offline Word Count</h1>
+  <div class="header">
+    <h1>iPify Offline Word Count</h1>
+    <button onclick="showInstructions()">📘 Instructions</button>
+  </div>
 
   <div class="card">
     <label for="language">Choose language</label>
@@ -88,147 +120,32 @@
 
   <div class="card" id="history" style="display: none;"></div>
 
+  <div id="instructions-modal">
+    <div id="instructions-content">
+      <button onclick="closeInstructions()">✖️</button>
+      <h3>Usage Instructions</h3>
+      <p><strong>If language of PDF is English, German, French or Portuguese:</strong></p>
+      <ul>
+        <li>Manually divide the PDF into the sections you wish to analyse separately beforehand and name them in a way that you know which section they refer to</li>
+        <li>Upload the PDFs one at a time into the tool and click 'Analyse Document'. The tool will then process the PDF and give you the page and word count (both unweighted and weighted).</li>
+        <li>The tool will then show you your history of previous analysis performed in the last hour so you don't have to remember the results for each PDF.</li>
+      </ul>
+      <p><strong>If the language is different to the above:</strong></p>
+      <ul>
+        <li>Go to the relevant WIPO page for the respective patent shown on the PDF</li>
+        <li>Run WIPO translate to a supported language (preferably English)</li>
+        <li>Copy-paste translated content into Word and save the Word file as PDF</li>
+      </ul>
+    </div>
+  </div>
+
   <script>
-    let uploadedFile = null;
-    let jobId = null;
-
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('file-input');
-    dropzone.onclick = () => fileInput.click();
-
-    dropzone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropzone.style.background = '#f0f0f0';
-    });
-
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.style.background = 'white';
-    });
-
-    dropzone.addEventListener('drop', e => {
-      e.preventDefault();
-      uploadedFile = e.dataTransfer.files[0];
-      document.getElementById('file-name').textContent = `📄 ${uploadedFile.name} ready to upload.`;
-    });
-
-    fileInput.addEventListener('change', () => {
-      uploadedFile = fileInput.files[0];
-      document.getElementById('file-name').textContent = `📄 ${uploadedFile.name} ready to upload.`;
-    });
-
-    async function startAnalysis() {
-      if (!uploadedFile) return alert('Please upload a PDF first.');
-
-      const reader = new FileReader();
-      const fileName = uploadedFile.name;
-      reader.onload = async function () {
-        const base64data = reader.result.split(',')[1];
-        const language = document.getElementById('language').value;
-
-        document.getElementById('status-section').style.display = 'block';
-        document.getElementById('status-text').textContent = 'Uploading and starting analysis...';
-        document.getElementById('results').textContent = '';
-
-        try {
-          const res = await fetch('https://ipify.app.n8n.cloud/webhook/offline-word-count/start', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'language': language
-            },
-            body: JSON.stringify(base64data)
-          });
-
-          if (!res.ok) {
-            const errText = await res.text();
-            document.getElementById('status-text').textContent = `❌ Error ${res.status}:\n${errText}`;
-            return;
-          }
-
-          const data = await res.json();
-          if (data.jobId) {
-            jobId = data.jobId;
-            pollStatus(jobId, language, data.page_count, fileName);
-          } else {
-            document.getElementById('status-text').textContent = `❌ Unexpected response: ${JSON.stringify(data)}`;
-          }
-
-        } catch (err) {
-          document.getElementById('status-text').textContent = '❌ Network or JS error. See console.';
-          console.error(err);
-        }
-      };
-
-      reader.readAsDataURL(uploadedFile);
+    function showInstructions() {
+      document.getElementById('instructions-modal').style.display = 'flex';
     }
-
-    async function pollStatus(jobId, language, pageCountFromStart = null, fileName = "Unknown") {
-      const interval = setInterval(async () => {
-        try {
-          const res = await fetch(`https://yu2swgjd61.execute-api.us-east-1.amazonaws.com/prod/status?jobId=${jobId}&language=${language}`);
-          const data = await res.json();
-
-          if (data.status === "SUCCEEDED") {
-            clearInterval(interval);
-            document.getElementById('status-text').textContent = '✅ Analysis Complete';
-            document.getElementById('results').innerHTML = `
-              <strong>Page Count:</strong> ${data.page_count || pageCountFromStart || 'N/A'}<br>
-              <strong>Translatable Words:</strong> ${data.translatable_words}<br>
-              <strong>Non-Translatable Words:</strong> ${data.non_translatable_words}<br>
-              <strong>Unweighted Total Words:</strong> ${data.unweighted_words}<br>
-              <strong>Weighted Words:</strong> ${data.weighted_words}
-            `;
-            saveHistoryEntry({ ...data, fileName, page_count: data.page_count || pageCountFromStart, time: Date.now() });
-          } else if (data.status === "FAILED") {
-            clearInterval(interval);
-            document.getElementById('status-text').textContent = '❌ Analysis Failed';
-          } else {
-            document.getElementById('status-text').textContent = `⏳ ${data.status}...`;
-          }
-        } catch (err) {
-          clearInterval(interval);
-          document.getElementById('status-text').textContent = '❌ Error checking status';
-          console.error(err);
-        }
-      }, 5000);
+    function closeInstructions() {
+      document.getElementById('instructions-modal').style.display = 'none';
     }
-
-    function saveHistoryEntry(result) {
-      const history = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
-      history.push(result);
-      const oneHourAgo = Date.now() - 3600 * 1000;
-      const recent = history.filter(h => h.time > oneHourAgo);
-      localStorage.setItem('analysisHistory', JSON.stringify(recent));
-      renderHistory(recent);
-    }
-
-    function renderHistory(history) {
-      const container = document.getElementById('history');
-      if (!history.length) return;
-      container.style.display = 'block';
-      container.innerHTML = '<h3>🕓 Analysis History (last hour)</h3>';
-      history.forEach(entry => {
-        const item = document.createElement('div');
-        const date = new Date(entry.time).toLocaleTimeString();
-        item.innerHTML = `<small>${date}</small><br>
-          📄 <strong>${entry.fileName}</strong><br>
-          📚 ${entry.page_count || 'N/A'} pages<br>
-          🔤 ${entry.translatable_words} translatable<br>
-          🚫 ${entry.non_translatable_words} non-translatable<br>
-          🔢 ${entry.unweighted_words} unweighted<br>
-          ⚖️ ${entry.weighted_words} weighted
-          <hr>`;
-        container.appendChild(item);
-      });
-    }
-
-    // Load history on page load
-    window.addEventListener('load', () => {
-      const saved = JSON.parse(localStorage.getItem('analysisHistory') || '[]');
-      const oneHourAgo = Date.now() - 3600 * 1000;
-      const recent = saved.filter(h => h.time > oneHourAgo);
-      renderHistory(recent);
-    });
   </script>
 </body>
 </html>
