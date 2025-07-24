@@ -58,10 +58,46 @@
       background: #eee;
       border-radius: 6px;
     }
+    #instructions-button {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      border: 2px solid #333;
+      border-radius: 5px;
+      background: white;
+      cursor: pointer;
+    }
+    #instructions-modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+    }
+    #instructions-content {
+      background: white;
+      border-radius: 10px;
+      padding: 2rem;
+      max-width: 600px;
+      margin: 10% auto;
+      font-size: 1rem;
+      white-space: pre-wrap;
+    }
+    #close-instructions {
+      float: right;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h1>iPify Offline Word Count</h1>
+  <button id="instructions-button">❔ Instructions</button>
 
   <div class="card">
     <label for="language">Choose language</label>
@@ -87,8 +123,40 @@
   </div>
 
   <div class="card" id="history" style="display: none;"></div>
+  <div id="instructions-modal">
+    <div id="instructions-content">
+      <span id="close-instructions">✖️</span>
+      <h3>How to Use This Tool</h3>
+      <p>
+If language of PDF is English, German, French or Portuguese:
+
+- Manually divide the PDF into the sections you wish to analyse separately beforehand and name them in a way that you know which section they refer to
+- Upload the PDFs one at a time into the tool and click 'Analyse Document'. The tool will then process the PDF and give you the page and word count (both unweighted and weighted).
+- The tool will then show you your history of previous analysis performed in the last hour so you don't have to remember the results for each PDF.
+
+If the language is different to the above:
+- Go to the relevant WIPO page for the respective patent shown on the PDF
+- Run WIPO translate to a supported language (preferably English)
+- Copy-paste translated content into Word and save the Word file as PDF
+      </p>
+    </div>
+  </div>
+  
 
   <script>
+    // Modal logic
+    document.getElementById('instructions-button').onclick = () => {
+      document.getElementById('instructions-modal').style.display = 'block';
+    };
+    document.getElementById('close-instructions').onclick = () => {
+      document.getElementById('instructions-modal').style.display = 'none';
+    };
+    window.onclick = e => {
+      if (e.target.id === 'instructions-modal') {
+        document.getElementById('instructions-modal').style.display = 'none';
+      }
+    };
+    
     let uploadedFile = null;
     let jobId = null;
 
